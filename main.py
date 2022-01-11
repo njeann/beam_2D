@@ -11,7 +11,7 @@ from classes import mat, mesh, field, s
 
 # Initialization
 L= 1
-discr = 5
+discr = 2
 
 
 material = mat()
@@ -23,7 +23,7 @@ BCF = np.array([[0,2,-10.0],[discr,2,10.0]])
 U = field(BCU.copy())
 F = field(BCF.copy())
 system = s(material, the_mesh, U, F)
-nb_inc = 5
+nb_inc = 10
 
 Ux, Uy, Utheta = system.get_results()
 plt.plot(Ux,Uy, label= "initial")
@@ -41,9 +41,16 @@ for j in range(1,nb_inc+1):
     while i<1000 and system.convergence==False : 
         system.compute_free_sys()
         system.re_order_K()
+        
+        #FE2
         Eps, Ki = system.compute_results()
         N,M = system.run_abaqus(Eps, Ki)
         system.update_EI(Eps, Ki, N, M)
+        """
+        #Simple
+        system.compute_results()
+        system.update_EI()
+        """
         i+=1
     
     print(i,system.convergence)

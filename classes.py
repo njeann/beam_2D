@@ -40,19 +40,19 @@ class mat:
 class mesh:
     
     def __init__(self,L,discr):
-        self.L = L
-        self.discr = discr
+        self.L = L #length of the beam 
+        self.discr = discr # number of discretisations
         self.nodes = np.array([np.linspace(0, self.L, self.discr+1),
-                               np.zeros((self.discr+1))]).transpose()
+                               np.zeros((self.discr+1))]).transpose() #array of nodes
         self.elements =  np.array([[i for i in range(self.discr)], 
-                                   [i for i in range(1,self.discr+1)]]).transpose()
+                                   [i for i in range(1,self.discr+1)]]).transpose() #connections
         self.nb_element = self.elements.shape[0]
 
 class field:
     
     def __init__(self, imp):
         self.imp = imp #prescribed
-        #self.comp = np.zeros((3*self.mesh.nodes.shape[0]))
+        #self.comp = np.zeros((3*self.mesh.nodes.shape[0])) #computed 
         #self.results = np.zeros((3*self.mesh.nodes.shape[0])) # result
 
 
@@ -60,34 +60,36 @@ class field:
 class s:        
     
     def __init__(self, mat, mesh, U, F):
-        self.mat = mat
-        self.mesh = mesh
-        self.EI = np.array([self.mat.EI]*self.mesh.nb_element)
-        self.U = U
-        self.F = F
+        self.mat = mat #materil
+        self.mesh = mesh #mesh
+        self.EI = np.array([self.mat.EI]*self.mesh.nb_element) #bending stifness for each element
+        self.U = U #displacements
+        self.F = F #forces
         self.KL = np.zeros((3*self.mesh.nodes.shape[0],
-                            3*self.mesh.nodes.shape[0]))
-        self.K22 = np.zeros((len(self.U.imp),len(self.U.imp)))
+                            3*self.mesh.nodes.shape[0])) #assembled stifness matrix
+        #sub matrixes
+        self.K22 = np.zeros((len(self.U.imp),len(self.U.imp))) #known displacements
         self.K11 = np.zeros((3*self.mesh.nodes.shape[0]-len(self.U.imp),
-                             3*self.mesh.nodes.shape[0]-len(self.U.imp)))
+                             3*self.mesh.nodes.shape[0]-len(self.U.imp)))#unknown displacement
         self.K12 = np.zeros((len(self.U.imp),
                              3*self.mesh.nodes.shape[0]-len(self.U.imp)))
         self.K21 = np.zeros((3*self.mesh.nodes.shape[0]-len(self.U.imp),
                              len(self.U.imp)))
-        self.convergence=0
-        self.U.results = np.zeros((3*self.mesh.nodes.shape[0]))
+        self.convergence=0 #convergence test 
+        self.U.results = np.zeros((3*self.mesh.nodes.shape[0])) 
         self.F.results = np.zeros((3*self.mesh.nodes.shape[0]))
-        self.M0 = np.zeros((self.mesh.nb_element))
-        self.Ki0 = np.zeros((self.mesh.nb_element))
+        self.M0 = np.zeros((self.mesh.nb_element)) #initialisation of elemental bending moment history 
+        self.Ki0 = np.zeros((self.mesh.nb_element))#initialisation of elemental curvature history
         
     def compute_free_sys(self):
+        """Assemble the elemental matrixes into the global stiffness matrix"""
         for e in range(self.mesh.nb_element):
             element_nodes = self.mesh.elements[e]
-            #index of the nodes compoing the element
+            #index of the nodes composing the element
             nodes_coords = self.mesh.nodes[element_nodes] 
             #coordinates of thenodes composing the element
             L_e = np.sqrt((nodes_coords[1,0]-nodes_coords[0,0])**2
-                          +(nodes_coords[1,1]-nodes_coords[0,1])**2)
+                          +(nodes_coords[1,1]-nodes_coords[0,1])**2)#length of the element
             #print(L_e)
             EI_e = self.EI[e]
             Ku_e = (self.mat.EA/L_e)*np.array([[1,-1],[-1,1]])
@@ -130,7 +132,8 @@ class s:
         return None
     
     def re_order_K(self):
-        
+        """Re order the stiffness matrix into 4 submatrixes 
+        (sliced between known and unknown displacements)"""
         self.idU_imp = 3*self.U.imp[:,0] + self.U.imp[:,1]
         mask = np.ones(3*len(self.mesh.nodes), bool)
         mask[self.idU_imp]= False             
@@ -144,6 +147,7 @@ class s:
         return None
     
     def compute_results (self):
+        """solve the problem using the ordered submatrixes"""
         F1 = np.zeros(3*len(self.mesh.nodes))
         for f in self.F.imp : 
             F1[3*int(f[0])+int(f[1])]=f[2]
@@ -183,6 +187,7 @@ class s:
         return Eps,Ki
     
     def update_EI(self, Eps, Ki, N, M):
+        """ubdate EI dependinf on the curvature and moment variation"""
         #self.Ki[:,1] = Ki
         #self.M[:,1] = M
         conv = True
@@ -198,6 +203,7 @@ class s:
         return None
     
     def get_results(self):
+        """Conpute nodal results"""
         #in progress 
         Ux = self.U.results[[i for i in range (0,len(self.U.results), 3)]]
         Uy = self.U.results[[i for i in range (1,len(self.U.results), 3)]]
@@ -216,6 +222,7 @@ class s:
         return M
     
     def run_abaqus(self, Eps, Ki):
+        """create fake results of an abaqus calculation"""
         #temporary
         
         N = self.mat.EA*Eps
