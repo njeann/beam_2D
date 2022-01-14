@@ -11,7 +11,7 @@ from classes import mat, mesh, field, s
 
 # Initialization
 L= 1
-discr = 2
+discr = 3
 
 
 material = mat()
@@ -23,7 +23,7 @@ BCF = np.array([[0,2,-10.0],[discr,2,10.0]])
 U = field(BCU.copy())
 F = field(BCF.copy())
 system = s(material, the_mesh, U, F)
-nb_inc = 10
+nb_inc = 3
 
 Ux, Uy, Utheta = system.get_results()
 plt.plot(Ux,Uy, label= "initial")
