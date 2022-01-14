@@ -187,14 +187,18 @@ class s:
         return Eps,Ki
     
     def update_EI(self, Eps, Ki, N, M):
-        """ubdate EI dependinf on the curvature and moment variation"""
+        """update EI dependinf on the curvature and moment variation"""
         #self.Ki[:,1] = Ki
         #self.M[:,1] = M
         conv = True
         for e in range(self.mesh.nb_element):
             EI_e = self.EI[e].copy()
-             #Si on part de zero
-            self.EI[e] = abs((M[e]-self.M0[e])/(Ki[e]-self.Ki0[e]))
+            
+            #for non linear
+            #self.EI[e] = abs((M[e]-self.M0[e])/(Ki[e]-self.Ki0[e]))
+            #for linear
+            self.EI[e] = 430
+            print(self.EI[e])
             
             if (self.EI[e]-EI_e)>0.1:
                 conv = False #convergence check
