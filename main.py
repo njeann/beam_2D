@@ -11,14 +11,14 @@ from classes import mat, mesh, field, s
 
 # Initialization
 L= 1
-discr = 3
+discr = 6
 
 
 material = mat()
 the_mesh = mesh(L,discr)
 
 BCU = np.array([[0,0,0],[0,1,0],[discr,0,0],[discr,1,0]])
-BCF = np.array([[0,2,-10.0],[discr,2,10.0]])
+BCF = np.array([[0,2,10.0],[discr,2,-10.0]])
 
 U = field(BCU.copy())
 F = field(BCF.copy())
@@ -39,7 +39,7 @@ for j in range(1,nb_inc+1):
     system.convergence=False
     i=0 #increment
     while i<1000 and system.convergence==False : 
-        system.compute_free_sys()
+        system.assemble()
         system.re_order_K()
         
         #FE2

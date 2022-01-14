@@ -12,6 +12,8 @@ class mat:
     EI_min = 52
     EI_max = 430
     C_critic = 0.015
+    #EI_min, EI_max, C_critic are used hier to compute a fake abaqus result, only one initial value of EI will be used in the code.
+    
     
     # Instance method
     def init_EI(self):
@@ -81,7 +83,7 @@ class s:
         self.M0 = np.zeros((self.mesh.nb_element)) #initialisation of elemental bending moment history 
         self.Ki0 = np.zeros((self.mesh.nb_element))#initialisation of elemental curvature history
         
-    def compute_free_sys(self):
+    def assemble(self):
         """Assemble the elemental matrixes into the global stiffness matrix"""
         for e in range(self.mesh.nb_element):
             element_nodes = self.mesh.elements[e]
@@ -92,11 +94,12 @@ class s:
                           +(nodes_coords[1,1]-nodes_coords[0,1])**2)#length of the element
             #print(L_e)
             EI_e = self.EI[e]
-            Ku_e = (self.mat.EA/L_e)*np.array([[1,-1],[-1,1]])
+            #elemental stiffness matrixes 
+            Ku_e = (self.mat.EA/L_e)*np.array([[1,-1],[-1,1]]) #tensile
             Kv_e = (EI_e/L_e**3)*np.array([[12, 6*L_e,-12,6*L_e],
                                            [6*L_e, 4*L_e**2, -6*L_e, 2*L_e**2],
                                            [-12, -6*L_e,12,-6*L_e],
-                                           [6*L_e, 2*L_e**2, -6*L_e, 4*L_e**2]])
+                                           [6*L_e, 2*L_e**2, -6*L_e, 4*L_e**2]]) #flexion
             #transfer matrix to put the dof in the right order                    
             P=np.array([[1,0,0,0,0,0],
                         [0,0,1,0,0,0],
@@ -109,7 +112,6 @@ class s:
             K_e[:2,:2]=Ku_e
             K_e[2:,2:]=Kv_e
             K_e = np.dot(np.dot(P,K_e), np.linalg.inv(P))
-            
             #transfert matrix to the global coordinate system
             lbd = (nodes_coords[1,0]-nodes_coords[0,0])/L_e
             mu = (nodes_coords[1,1]-nodes_coords[0,1])/L_e
@@ -121,13 +123,12 @@ class s:
                           [0,0,0,0,0,1]])
             
             K_e = np.dot(np.dot(T,K_e), np.linalg.inv(T))
-            
             #Assembly
             i,j = 3*element_nodes[0],3*element_nodes[1]
-            self.KL[i:i+3,i:i+3]= K_e[:3,:3]
-            self.KL[i:i+3,j:j+3]= K_e[:3,-3:]
-            self.KL[j:j+3,i:i+3]= K_e[-3:,:3]
-            self.KL[j:j+3,j:j+3]= K_e[-3:,-3:]
+            self.KL[i:i+3,i:i+3]= self.KL[i:i+3,i:i+3] + K_e[:3,:3]
+            self.KL[i:i+3,j:j+3]= self.KL[i:i+3,j:j+3] + K_e[:3,-3:]
+            self.KL[j:j+3,i:i+3]= self.KL[j:j+3,i:i+3] + K_e[-3:,:3]
+            self.KL[j:j+3,j:j+3]= self.KL[j:j+3,j:j+3] + K_e[-3:,-3:]
             #print (self.KL)
         return None
     
@@ -163,7 +164,7 @@ class s:
         self.U.results[self.idU_com]= U1
         self.F.results[self.idU_com]= F1
         self.F.results[self.idU_imp]= F2
-        print(self.U.results)
+        #print(self.U.results)
         
         
         Ki = np.zeros((self.mesh.nb_element))
@@ -220,9 +221,9 @@ class s:
         M= np.zeros(len(Ki))
         for k in range(len(Ki)):
             if Ki[k]>=self.mat.C_critic : 
-                M[k] = self.mat.EI_max*Ki[k]
-            else : 
                 M[k] = self.mat.EI_min*Ki[k]
+            else : 
+                M[k] = self.mat.EI_max*Ki[k]
         return M
     
     def run_abaqus(self, Eps, Ki):
